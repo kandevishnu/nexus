@@ -12,7 +12,7 @@ import Unauthorized from "./Pages/Unauthorized";
 
 const App = () => {
   return (
-    // <AuthProvider>
+    <AuthProvider>
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />
@@ -56,7 +56,7 @@ const App = () => {
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
       </Router>
-    // </AuthProvider>
+    </AuthProvider>
   );
 };
 
