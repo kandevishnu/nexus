@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const useNavigate = () => (path) => {
-  console.log(`Navigating to ${path}`);
-};
-
-const useAuth = () => ({
-  setAuth: (auth) => console.log("Setting auth:", auth),
-});
-
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { useAuth, getDefaultRoute } from "../routes/AuthContext";
 
 const NexusLogo = (props) => (
   <svg
@@ -176,8 +170,15 @@ export default function App() {
   const [error, setError] = useState(null);
   const canvasRef = useRef(null);
 
-  const { setAuth } = useAuth();
   const navigate = useNavigate();
+  const { setAuth } = useAuth();
+
+  const getCsrfToken = () => {
+    return document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("csrftoken"))
+      ?.split("=")[1];
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -211,7 +212,7 @@ export default function App() {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(165, 180, 252, ${this.opacity})`; 
+        ctx.strokeStyle = `rgba(165, 180, 252, ${this.opacity})`;
         ctx.lineWidth = 1.5;
 
         if (this.type === "triangle") {
@@ -288,16 +289,44 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    if (email.startsWith("o190") && password === "password") {
-      setAuth({ email, role: "student" });
-      navigate("/dashboard");
-      setEmail("");
-      setPassword("");
-    } else {
-      setError("Login failed. Please check your credentials.");
+
+    try {
+      const csrfToken = getCsrfToken(); // ✅ grab token
+
+      const response = await fetch("/api/log/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken, // important
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (data.role) {
+        setAuth({
+          isAuthenticated: true,
+          role: data.role.toLowerCase(),
+          user: data.user ?? null,
+          loading: false, // Also set loading to false here
+        });
+
+        // Use the imported helper function
+        const targetPath = getDefaultRoute(data.role);
+        navigate(targetPath, { replace: true });
+
+        setEmail("");
+        setPassword("");
+      } else {
+        setError("Login failed: no role in response.");
+      }
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const containerVariants = {

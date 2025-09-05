@@ -1,3 +1,4 @@
+// src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./routes/AuthContext";
@@ -9,25 +10,35 @@ import FacultyDashboard from "./Pages/FacultyDashboard";
 import HodDashboard from "./Pages/HodDashboard";
 import DeanDashboard from "./Pages/DeanDashboard";
 import Unauthorized from "./Pages/Unauthorized";
+import Home from "./Pages/Home";
+import GuestRoute from "./routes/GuestRoute";
 
 const App = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <GuestRoute>
+                <Login />
+              </GuestRoute>
+            }
+          />
+          {/* <Route path="/home" element={<Home />} /> */}
 
           <Route
             path="/student/*"
             element={
-              // <ProtectedRoute allowedRoles={["student"]}>
+              <ProtectedRoute allowedRoles={["student"]}>
                 <StudentDashboard />
-              // </ProtectedRoute>
+              </ProtectedRoute>
             }
           />
 
           <Route
-            path="/faculty"
+            path="/faculty/*"
             element={
               <ProtectedRoute allowedRoles={["faculty"]}>
                 <FacultyDashboard />
@@ -36,7 +47,7 @@ const App = () => {
           />
 
           <Route
-            path="/hod"
+            path="/hod/*"
             element={
               <ProtectedRoute allowedRoles={["hod"]}>
                 <HodDashboard />
@@ -45,7 +56,7 @@ const App = () => {
           />
 
           <Route
-            path="/dean"
+            path="/dean/*"
             element={
               <ProtectedRoute allowedRoles={["dean"]}>
                 <DeanDashboard />
@@ -55,8 +66,8 @@ const App = () => {
 
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 };
 

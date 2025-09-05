@@ -11,7 +11,7 @@ const StudentDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef(null);
   const location = useLocation();
-//   const { logout } = useAuth(); 
+  const { logout } = useAuth(); 
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -33,6 +33,7 @@ const StudentDashboard = () => {
   }, [sidebarOpen]);
 
   const isActive = (path) => location.pathname.includes(path);
+
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -75,7 +76,7 @@ const StudentDashboard = () => {
           </Link>
 
           <button
-            // onClick={logout}
+            onClick={logout}
             className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-red-100 text-red-600 mt-6"
           >
             <LogOut size={18} />

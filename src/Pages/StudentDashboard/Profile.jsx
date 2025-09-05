@@ -1,33 +1,49 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import defaultProfilePic from "../../assets/defaultProfilePic.png";
-import pic from "../../assets/O210955 (1).jpg";
 
-const Profile = ({ student }) => {
-  const data = student || {
-    rollNo: "83",
-    idNo: "O210955",
-    name: "KANDE VISHNU", 
-    gender: "Male",
-    course: "B TECH",
-    branch: "CSE",
-    section: "3",
-    batch: "O21",
-    studentMobile: "8074347470",
-    dob: "25/09/2005",
-    fatherName: "K Sreenu",
-    motherName: "K Adilakshmi",
-    parentMobile: "8106975615",
-    address: "4-545, Kakuturivaripalem, Tangutur, Prakasam, Andhra Pradesh",
-    bloodGroup: "B+",
-    gmail: "o210955@rguktong.ac.in",
-    photo: "",
-  };
+const Profile = () => {
+  const [student, setStudent] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch student profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/student/profile/", {
+          credentials: "include", 
+        });
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        const data = await res.json();
+        setStudent(data);
+        console.log(data);
+      } catch (err) {
+        console.error(err);
+        setStudent(null); // fallback to empty
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  const data = student || {};
 
   const initialPhoto = useMemo(
-    () => (data.photo && String(data.photo).trim()) || pic || defaultProfilePic,
+    () => (data.photo && String(data.photo).trim()) || defaultProfilePic,
     [data.photo]
   );
   const [imgSrc, setImgSrc] = useState(initialPhoto);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
+
+  // fallback object if student is null
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex justify-center items-center p-6">
