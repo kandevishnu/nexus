@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useAuth, getDefaultRoute } from "../routes/AuthContext";
+import { getCookie } from "../utils";
 
 const NexusLogo = (props) => (
   <svg
@@ -163,7 +163,7 @@ const ErrorMessage = ({ message, onClose }) => {
   );
 };
 
-export default function App() {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -172,13 +172,6 @@ export default function App() {
 
   const navigate = useNavigate();
   const { setAuth } = useAuth();
-
-  const getCsrfToken = () => {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("csrftoken"))
-      ?.split("=")[1];
-  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -291,13 +284,13 @@ export default function App() {
     setError(null);
 
     try {
-      const csrfToken = getCsrfToken(); // ✅ grab token
+      const csrfToken = getCookie("csrftoken");
 
       const response = await fetch("/api/log/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken, // important
+          "X-CSRFToken": csrfToken,
         },
         body: JSON.stringify({ email, password }),
         credentials: "include",
@@ -305,28 +298,46 @@ export default function App() {
 
       const data = await response.json();
 
-      if (data.role) {
+      if (response.ok && data.role) {
         setAuth({
           isAuthenticated: true,
           role: data.role.toLowerCase(),
           user: data.user ?? null,
-          loading: false, // Also set loading to false here
+          loading: false,
         });
 
-        // Use the imported helper function
         const targetPath = getDefaultRoute(data.role);
         navigate(targetPath, { replace: true });
 
         setEmail("");
         setPassword("");
       } else {
-        setError("Login failed: no role in response.");
+        // Handle failed login
+        const errMsg = data.error || data.detail || "Login failed. Invalid credentials.";
+        
+        // --- START NEW LOGIC: Store email on failure ---
+        if (errMsg.includes("Invalid credentials") || errMsg.includes("Wrong password")) {
+          localStorage.setItem("recoveryEmail", email);
+        }
+        // --- END NEW LOGIC ---
+
+        setError(errMsg);
       }
     } catch (err) {
       setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+  
+  // New navigation handler for Forgot Password link
+  const handleForgotPasswordClick = (e) => {
+    e.preventDefault();
+    // If the user entered an email, save it for autofill on the next page
+    if (email) {
+        localStorage.setItem("recoveryEmail", email);
+    }
+    navigate("/forgot-password");
   };
 
   const containerVariants = {
@@ -465,6 +476,7 @@ export default function App() {
                 >
                   <a
                     href="/forgot-password"
+                    onClick={handleForgotPasswordClick} // Use new handler
                     className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
                   >
                     Forgot password?

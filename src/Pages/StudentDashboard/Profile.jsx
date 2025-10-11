@@ -5,7 +5,6 @@ const Profile = () => {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch student profile on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -18,7 +17,7 @@ const Profile = () => {
         console.log(data);
       } catch (err) {
         console.error(err);
-        setStudent(null); // fallback to empty
+        setStudent(null); 
       } finally {
         setLoading(false);
       }
@@ -43,7 +42,6 @@ const Profile = () => {
     );
   }
 
-  // fallback object if student is null
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex justify-center items-center p-6">
@@ -56,10 +54,10 @@ const Profile = () => {
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-sm font-semibold text-indigo-700">
-              ID No: {data.idNo}
+              Hall Ticket : {data.hallTicketNo}
             </span>
             <span className="inline-flex items-center rounded-full bg-gray-50 border border-gray-200 px-3 py-1 text-sm text-gray-700">
-              Roll No: {data.rollNo}
+              ID No: {data.idNo}
             </span>
           </div>
         </div>
@@ -77,7 +75,7 @@ const Profile = () => {
                 {data.name}
               </h2>
               <p className="text-sm text-gray-600">
-                BATCH {data.batch} • {data.course}
+                {data.batch} BATCH
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 {data.branch} • Section {data.section}  
@@ -92,6 +90,8 @@ const Profile = () => {
                 <ProfileField label="Gender" value={data.gender} />
                 <ProfileField label="Date of Birth" value={data.dob} />
                 <ProfileField label="Blood Group" value={data.bloodGroup} />
+                <ProfileField label="Hostel" value={data.hostelName} />
+                <ProfileField label="Room No" value={data.roomNo} />
                 <div className="sm:col-span-2">
                   <ProfileField
                     label="Email"
@@ -111,10 +111,10 @@ const Profile = () => {
 
             <Section title="Academic Information">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                <ProfileField label="Course" value={data.course} />
                 <ProfileField label="Batch" value={data.batch} />
                 <ProfileField label="Branch" value={data.branch} />
                 <ProfileField label="Section" value={data.section} />
+                <ProfileField label="Roll NO" value={data.rollNo} />
               </div>
             </Section>
 

@@ -60,32 +60,30 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuthStatus();
-  }, []); // Empty array ensures this runs only once on mount
+  }, []); 
 
-  // Logout function remains the same
   const logout = async () => {
-    try {
-      const csrfToken = getCookie("csrftoken");
-      await fetch("/api/logout/", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken, // 👈 3. Add the token to the header
-        },
-      });
-    } catch (err) {
-      console.error("Logout failed:", err);
-    } finally {
-      // Clear auth state regardless of API call success
-      setAuth({
-        isAuthenticated: false,
-        role: null,
-        user: null,
-        loading: false,
-      });
-    }
-  };
+  const csrfToken = getCookie("csrftoken");
+  try {
+    await fetch("/api/logout/", {
+      method: "POST", // Changed to POST method
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken, // Use X-CSRFToken header for POST requests
+      },
+    });
+  } catch (err) {
+    console.error("Logout failed:", err);
+  } finally {
+    setAuth({
+      isAuthenticated: false,
+      role: null,
+      user: null,
+      loading: false,
+    });
+  }
+};
 
   return (
     <AuthContext.Provider value={{ auth, setAuth, logout }}>
@@ -106,6 +104,8 @@ export const getDefaultRoute = (role) => {
       return "/hod";
     case "dean":
       return "/dean";
+    case "admin":
+      return "/admin";
     default:
       return "/unauthorized";
   }

@@ -9,9 +9,13 @@ import StudentDashboard from "./Pages/StudentDashboard";
 import FacultyDashboard from "./Pages/FacultyDashboard";
 import HodDashboard from "./Pages/HodDashboard";
 import DeanDashboard from "./Pages/DeanDashboard";
+import AdminDashboard from "./Pages/AdminDashboard";
 import Unauthorized from "./Pages/Unauthorized";
+import Code from "./Code";
 import Home from "./Pages/Home";
 import GuestRoute from "./routes/GuestRoute";
+import ForgotPasswordVerification from "./Pages/ForgotPasswordVerification";
+import ResetPassword from "./Pages/ResetPassword";
 
 const App = () => {
   return (
@@ -27,6 +31,16 @@ const App = () => {
             }
           />
           {/* <Route path="/home" element={<Home />} /> */}
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPasswordVerification />}
+          />
+
+          <Route
+            path="/reset-password"
+            element={<ResetPassword />}
+          />
 
           <Route
             path="/student/*"
@@ -63,6 +77,17 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/code" element={<Code />} />
 
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
