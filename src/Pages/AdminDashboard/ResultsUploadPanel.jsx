@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, TrendingUp, ChevronDown, ListChecks, FileUp, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { getCookie } from "../utils"; // Assuming the file is located in the parent directory of AdminDashboard
+import { TrendingUp, ChevronDown, ListChecks, FileUp, Loader2, CheckCircle, XCircle } from 'lucide-react';
+// import { getCookie } from "../utils"; // CSRF is usually not needed for JWT, you can remove this if unused
+import { useAuth } from "../../routes/AuthContext"; // Import Auth Hook
 
 // --- Utility Components and Logic ---
 
@@ -18,7 +19,6 @@ const generateAcademicYears = () => {
     // Add PUC years (PUC1 S1/S2, PUC2 S1/S2)
     for (let p = 1; p <= 2; p++) {
         for (let s = 1; s <= 2; s++) {
-            // Label: PUC1 SEM1, Value: PUC1_S1
             years.push({ label: `PUC${p} SEM${s}`, value: `PUC${p}_S${s}` });
         }
     }
@@ -26,7 +26,6 @@ const generateAcademicYears = () => {
     // Add Engineering years (E1 S1 to E4 S2)
     for (let e = 1; e <= 4; e++) {
         for (let s = 1; s <= 2; s++) {
-            // Label: E1 SEM1, Value: E1_S1
             years.push({ label: `E${e} SEM${s}`, value: `E${e}_S${s}` });
         }
     }
@@ -150,27 +149,36 @@ const SubjectDetailsTab = () => {
     const [file, setFile] = useState(null);
     const [status, setStatus] = useState("idle");
     const [message, setMessage] = useState("");
+    
+    // FIX 1: Access the Token Helper
+    const { getAccessToken } = useAuth(); 
 
     const handleProcess = async () => {
+        // FIX 2: Get Token
+        const token = getAccessToken();
+        if (!token) {
+            setStatus('error');
+            setMessage("Authentication failed. Please login again.");
+            return;
+        }
+
         setStatus('loading');
         setMessage("Uploading subject details...");
-        
-        // --- API CALL HERE ---
-        const csrfToken = getCookie("csrftoken");
         
         try {
             const formData = new FormData();
             formData.append("excel_file", file);
             
-            // UPDATED ENDPOINT: /api/results/subjectInfo/
             const response = await fetch("/api/results/subjectInfo/", {
                 method: "POST",
                 body: formData,
-                headers: { "X-CSRFToken": csrfToken },
-                credentials: "include",
+                headers: { 
+                    // FIX 3: Send Authorization Header instead of CSRF
+                    "Authorization": `Bearer ${token}` 
+                },
+                // credentials: "include", // Removed for JWT flow
             });
             
-            // Assuming the backend handles the save and returns a success message
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: `Server failed with status: ${response.status}` }));
                 throw new Error(errorData.error || "Failed to upload subject details.");
@@ -210,7 +218,9 @@ const ResultsEntryTab = () => {
     const [status, setStatus] = useState("idle");
     const [message, setMessage] = useState("");
 
-    // Simulate validation based on selected year and file name
+    // FIX 1: Access the Token Helper
+    const { getAccessToken } = useAuth();
+
     const handleValidation = () => {
         if (!academicYear) {
             setStatus('error');
@@ -218,42 +228,43 @@ const ResultsEntryTab = () => {
             return false;
         }
 
-        // --- SIMULATED FILE MATCHING LOGIC ---
         if (file) {
-            // Get the selected year format (e.g., E1_S1)
             const selectedSem = academicYear.split('_')[1]; 
             const fileName = file.name.toUpperCase();
             
-            // Check if the filename contains the semester part (S1, S2, etc.)
-            // Note: This logic is simple and meant to be replaced by backend verification.
             if (!fileName.includes(selectedSem) && !fileName.includes(academicYear.replace('_', ''))) {
                  setStatus('error');
                  setMessage(`File name mismatch. Selected year is ${academicYear}, but file name does not seem to contain '${selectedSem}'.`);
                  return false;
             }
         }
-        // --- END SIMULATED LOGIC ---
         
         setStatus('loading');
         setMessage('Validation passed. Submitting file for saving...');
-        handleSave(); // Proceed to save if validation passes
+        handleSave(); 
     };
 
     const handleSave = async () => {
-        const csrfToken = getCookie("csrftoken");
+        // FIX 2: Get Token
+        const token = getAccessToken();
+        if (!token) {
+            setStatus('error');
+            setMessage("Authentication failed. Please login again.");
+            return;
+        }
         
         try {
             const formData = new FormData();
             formData.append("excel_file", file);
-            // MANDATORY: Add the selected academic year to the form data
             formData.append("year_sem", academicYear); 
 
-            // UPDATED API endpoint to process and save results
             const response = await fetch("/api/results/result/", { 
                 method: "POST",
                 body: formData,
-                headers: { "X-CSRFToken": csrfToken },
-                credentials: "include",
+                headers: { 
+                    // FIX 3: Send Authorization Header instead of CSRF
+                    "Authorization": `Bearer ${token}` 
+                },
             });
             
             if (!response.ok) {
@@ -261,22 +272,10 @@ const ResultsEntryTab = () => {
                 throw new Error(errorData.error || "Failed to upload results.");
             }
 
-            // Simulate progress for the final save (as implemented previously)
-            const totalRecords = 50; // Mock total records for progress bar
-            
-            // Simulating progress
-            let progressInterval = setInterval(() => {
-                // Logic removed to prevent ReferenceError.
-            }, 50);
-
-            setTimeout(() => {
-                // Ensure interval is stopped before state change
-                if (typeof progressInterval !== 'undefined') clearInterval(progressInterval); 
-                
-                setStatus('success');
-                setMessage(`Results for ${academicYear} saved successfully!`);
-                setFile(null);
-            }, 1000); // 1 second hardcoded delay for success
+            // Simple success handler without complex intervals
+            setStatus('success');
+            setMessage(`Results for ${academicYear} saved successfully!`);
+            setFile(null);
 
         } catch (err) {
             setStatus('error');
@@ -302,13 +301,12 @@ const ResultsEntryTab = () => {
                         Academic Year Selection <span className="text-red-500">*</span>
                     </h3>
                     
-                    {/* Styled Dropdown for Academic Year */}
                     <div className="relative inline-block text-left w-full sm:w-auto">
                         <select
                             value={academicYear}
                             onChange={(e) => {
                                 setAcademicYear(e.target.value);
-                                setStatus('idle'); // Reset status on year change
+                                setStatus('idle'); 
                                 setMessage('');
                             }}
                             className="appearance-none block w-full bg-white border border-gray-400 py-2 pl-3 pr-10 rounded-md shadow-inner focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 font-medium"

@@ -1,114 +1,134 @@
-// src/routes/AuthContext.jsx
-
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { getCookie } from "../utils"; // Assuming this works correctly
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState({
-    isAuthenticated: false,
-    role: null,
-    user: null,
-    loading: true, // Start in a loading state
-  });
+    const [auth, setAuth] = useState({
+        isAuthenticated: false,
+        role: null,
+        user: null,
+        loading: true, 
+    });
 
-  // This useEffect now runs once on app load/refresh to verify the session
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        // Always check the session with the backend.
-        // The browser will automatically send the session cookie.
-        const res = await fetch("/api/log/", {
-          credentials: "include",
-        });
+    // Helper to get the access token
+    const getAccessToken = useCallback(() => localStorage.getItem('access'), []);
+    const getRefreshToken = useCallback(() => localStorage.getItem('refresh'), []);
+    
+    // Function to refresh the Access Token using the Refresh Token
+    const refreshAccessToken = async () => {
+        const refresh = getRefreshToken();
+        if (!refresh) return false;
 
-        // If the server returns a 401/403 or other error, it will throw here
-        if (!res.ok) {
-            throw new Error("Session check failed");
+        try {
+            const res = await fetch("/api/token/refresh/", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh }),
+            });
+
+            if (!res.ok) throw new Error("Token refresh failed");
+            
+            const data = await res.json();
+            
+            // Store the new access token
+            localStorage.setItem('access', data.access);
+            return data.access;
+
+        } catch (err) {
+            console.error("Token refresh failed:", err);
+            return false;
         }
-        
-        const data = await res.json();
+    };
 
-        if (data?.is_authenticated) {
-          // If authenticated, set all the relevant details
-          setAuth({
-            isAuthenticated: true,
-            role: data.role ? data.role.toLowerCase() : null,
-            user: data.user ?? null,
-            loading: false, // Finished loading
-          });
-        } else {
-          // If not authenticated, set the state explicitly
-          setAuth({
+
+    const checkAuthStatus = async () => {
+        // 1. Get the token from LocalStorage
+        const access = getAccessToken();
+
+        if (!access) {
+            setAuth({ isAuthenticated: false, role: null, user: null, loading: false });
+            return;
+        }
+
+        try {
+            // 2. Decode the JWT Token manually to find the Role
+            // (JWTs are just 3 parts separated by dots. The middle part is data.)
+            const payload = JSON.parse(atob(access.split('.')[1]));
+            
+            // 3. Check if token is expired
+            const currentTime = Date.now() / 1000;
+            if (payload.exp < currentTime) {
+                // Token expired - try to refresh or logout
+                // For simplicity here, we logout. You can add refresh logic if you want.
+                throw new Error("Token expired");
+            }
+
+            // 4. Get the role from the token payload
+            // Your backend sends "role": "ADMIN", so we convert to lowercase
+            const userRole = payload.role ? payload.role.toLowerCase() : null;
+
+            // 5. Restore the Session
+            setAuth({
+                isAuthenticated: true,
+                role: userRole,
+                user: { username: payload.user_id }, // We restore ID from token
+                loading: false, 
+            });
+
+        } catch (err) {
+            console.error("Session restore failed:", err);
+            // If token is garbage or expired, clear it
+            localStorage.removeItem('access'); 
+            localStorage.removeItem('refresh'); 
+            setAuth({
+                isAuthenticated: false,
+                role: null,
+                user: null,
+                loading: false,
+            });
+        }
+    };
+
+    useEffect(() => {
+        checkAuthStatus();
+    }, []); 
+
+    const logout = () => {
+        // Clear both tokens on logout
+        localStorage.removeItem('access'); 
+        localStorage.removeItem('refresh'); 
+        
+        setAuth({
             isAuthenticated: false,
             role: null,
             user: null,
-            loading: false, // Finished loading
-          });
-        }
-      } catch (err) {
-        console.error("Auth check failed:", err);
-        // On any error (network, server error), assume user is not logged in
-        setAuth({
-          isAuthenticated: false,
-          role: null,
-          user: null,
-          loading: false, // Finished loading
+            loading: false,
         });
-      }
     };
 
-    checkAuthStatus();
-  }, []); 
-
-  const logout = async () => {
-  const csrfToken = getCookie("csrftoken");
-  try {
-    await fetch("/api/logout/", {
-      method: "POST", // Changed to POST method
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": csrfToken, // Use X-CSRFToken header for POST requests
-      },
-    });
-  } catch (err) {
-    console.error("Logout failed:", err);
-  } finally {
-    setAuth({
-      isAuthenticated: false,
-      role: null,
-      user: null,
-      loading: false,
-    });
-  }
-};
-
-  return (
-    <AuthContext.Provider value={{ auth, setAuth, logout }}>
-      {/* Don't render children until the initial auth check is complete */}
-      {!auth.loading && children}
-    </AuthContext.Provider>
-  );
+    return (
+        <AuthContext.Provider value={{ auth, setAuth, logout, getAccessToken, refreshAccessToken }}>
+            {!auth.loading && children}
+        </AuthContext.Provider>
+    );
 };
 
 // These helpers can remain the same
 export const getDefaultRoute = (role) => {
-  switch (role?.toLowerCase()) {
-    case "student":
-      return "/student";
-    case "faculty":
-      return "/faculty";
-    case "hod":
-      return "/hod";
-    case "dean":
-      return "/dean";
-    case "admin":
-      return "/admin";
-    default:
-      return "/unauthorized";
-  }
+    switch (role?.toLowerCase()) {
+        case "student":
+            return "/student";
+        case "faculty":
+            return "/faculty";
+        case "hod":
+            return "/hod";
+        case "dean":
+            return "/dean";
+        case "admin":
+            return "/admin";
+        default:
+            return "/unauthorized";
+    }
 };
 
 export const useAuth = () => useContext(AuthContext);

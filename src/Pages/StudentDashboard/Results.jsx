@@ -1,18 +1,18 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { TrendingUp, Search, Printer, ChevronDown, Loader2, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
-import { getCookie } from "../../utils"; // Corrected path to navigate up two levels to reach src/utils
+import React, { useState, useMemo } from 'react';
+import { TrendingUp, Search, Printer, ChevronDown, Loader2, AlertTriangle, XCircle } from 'lucide-react';
+import { useAuth } from "../../routes/AuthContext"; 
 
 // --- Utility Functions ---
 
 // Grade to Grade Point (GP) mapping
 const GRADE_POINTS = {
-    'Ex': 10,
+    'EX': 10, // Updated to match uppercase from your data
     'A': 9,
     'B': 8,
     'C': 7,
     'D': 6,
     'E': 5,
-    'F': 0, // Fail
+    'F': 0, 
 };
 
 // Generates academic year options (PUC1 S1 to E4 S2)
@@ -39,10 +39,9 @@ const generateAcademicYears = () => {
 
 const Results = () => {
     const years = generateAcademicYears();
+    const { getAccessToken } = useAuth(); 
     
-    // --- REMOVED DUMMY DATA FOR LIVE FETCH ---
-    
-    const [selectedYear, setSelectedYear] = useState(years[0].value); // Start with 'Select Academic Year'
+    const [selectedYear, setSelectedYear] = useState(years[0].value); 
     const [results, setResults] = useState(null); 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -56,29 +55,29 @@ const Results = () => {
         let failedSubjects = false;
 
         results.forEach(subject => {
-            // Ensure credits is always treated as a number
+            // FIX: Use 'credits' and 'grade' from your new data structure
             const credits = parseInt(subject.credits) || 0; 
-            const grade = subject.semGrade || 'F';
+            const grade = subject.grade || 'F'; 
             const gradePoint = GRADE_POINTS[grade.toUpperCase()] || 0;
             
-            totalCredits += credits;
+            // Only count credits if they exist (Some subjects might have 0 credits)
+            if (credits > 0) {
+                 totalCredits += credits;
+            }
 
             if (gradePoint === 0 && grade.toUpperCase() === 'F') {
                 failedSubjects = true;
             }
             
-            // Only count credits for passed subjects towards SGPA calculation
             if (gradePoint > 0) { 
                 totalCreditPoints += credits * gradePoint;
             }
         });
 
-        // SGPA is not calculated if any subject has an 'F' grade
         if (failedSubjects) {
-            return { sgpa: 'F (Failed)', totalCredits, totalCreditPoints: 0, failed: true };
+            return { sgpa: 'F (Failed)', totalCredits, failed: true };
         }
 
-        // Prevent division by zero
         if (totalCredits === 0) {
             return { sgpa: 'N/A', totalCredits: 0, failed: false };
         }
@@ -89,7 +88,7 @@ const Results = () => {
     }, [results]);
 
 
-    // Fetch results from backend (Now performing live API call)
+    // Fetch results from backend
     const fetchResults = async () => {
         if (!selectedYear) {
             setError("Please select an Academic Year to view results.");
@@ -97,41 +96,50 @@ const Results = () => {
             return;
         }
 
+        const token = getAccessToken();
+
+        if (!token) {
+            setError("Authentication token missing. Please re-login.");
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setResults(null);
         
-        const csrfToken = getCookie("csrftoken");
         try {
-            // UPDATED ENDPOINT: /api/student/get-results/
             const response = await fetch(`/api/student/get-results/?year_sem=${selectedYear}`, {
                 method: "GET",
-                headers: { "X-CSRFToken": csrfToken },
-                credentials: "include",
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json',
+                },
             });
 
             const data = await response.json();
 
+            if (response.status === 401) {
+                 throw new Error("Session expired. Please log in again.");
+            }
             if (!response.ok) {
-                const errMsg = data.error || data.detail || `Failed to fetch results for ${selectedYear}. Status: ${response.status}`;
+                const errMsg = data.error || data.detail || `Failed to fetch results. Status: ${response.status}`;
                 setError(errMsg);
                 return;
             }
 
-            if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-                setResults(data.results);
+            // FIX: Access 'data.data' instead of 'data.results' based on your API response
+            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                setResults(data.data);
             } else {
                 setError(`No results found for ${selectedYear}.`);
             }
         } catch (err) {
-            // Check for potential network/CORS issues causing non-JSON response
-            setError(err.message || "Network error while fetching results. Check console for details.");
+            setError(err.message || "Network error. Check console.");
         } finally {
             setLoading(false);
         }
     };
     
-    // Print functionality (using browser's native print dialog)
     const handlePrint = () => {
         window.print();
     };
@@ -145,35 +153,34 @@ const Results = () => {
                 Marks for {selectedYear}
             </h3>
             
-            {/* Results Table - Use overflow-x-auto to ensure horizontal scrolling is possible for small screens */}
             <div className="overflow-x-auto rounded-lg border border-gray-300">
                 <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '700px' }}>
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Subject</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Code</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[60px]">Credits</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[60px]">Mid 1</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[60px]">Mid 2</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[60px]">Mid 3</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[60px]">WAT</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Internal</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Grade</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Subject</th>
+                            {/* Removed Code column as it's not in your data */}
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Mid 1</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Mid 2</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Mid 3</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">WAT</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Sem Score (bo2)</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {results.map((r, index) => (
-                            <tr key={index} className={r.semGrade === 'F' ? 'bg-red-50' : ''}>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{r.subjectName}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600">{r.subjectCode}</td>
+                            <tr key={index} className={r.grade === 'F' ? 'bg-red-50' : ''}>
+                                {/* FIX: Mapping keys according to your new data */}
+                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{r.subject}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.credits}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.mid1}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.mid2}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.mid3}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.wat}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.internalMarks}</td>
-                                <td className={`px-4 py-3 whitespace-nowrap text-center text-base font-semibold ${r.semGrade === 'F' ? 'text-red-600' : 'text-green-600'}`}>
-                                    {r.semGrade}
+                                <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.WAT}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-600">{r.bo2}</td>
+                                <td className={`px-4 py-3 whitespace-nowrap text-center text-base font-semibold ${r.grade === 'F' ? 'text-red-600' : 'text-green-600'}`}>
+                                    {r.grade}
                                 </td>
                             </tr>
                         ))}
@@ -199,7 +206,6 @@ const Results = () => {
                 </button>
             </div>
             
-            {/* Grade Point Legend */}
              <div className="mt-4 text-xs text-gray-500 print:hidden">
                 <p>Grade Point Scale: Ex (10), A (9), B (8), C (7), D (6), E (5), F (0 - Fail).</p>
             </div>

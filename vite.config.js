@@ -6,14 +6,16 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: true, // listen on 0.0.0.0 so ngrok can reach it
+    allowedHosts: ['d4f4e4431208.ngrok-free.app'], // 👈 NO https:// here
     proxy: {
       '/api': {
-        target: 'https://sparlike-neurally-pa.ngrok-free.dev', // make sure this is the working URL
+        target: 'https://sparlike-neurally-pa.ngrok-free.dev',
         changeOrigin: true,
-        secure: true, // https -> true
-        rewrite: (path) => path.replace(/^\/api/, ''), // /api/log/ -> /log/
+        secure: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
         headers: {
-          'ngrok-skip-browser-warning': 'true', // 👈 THIS IS THE IMPORTANT PART
+          'ngrok-skip-browser-warning': 'true',
         },
       },
     },
