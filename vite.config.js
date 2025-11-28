@@ -8,10 +8,13 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://10.201.132.235:8000', // backend URL
+        target: 'https://sparlike-neurally-pa.ngrok-free.dev', // make sure this is the working URL
         changeOrigin: true,
-        secure: false,
-        rewrite: path => path.replace(/^\/api/, '') // remove /api before sending to backend
+        secure: true, // https -> true
+        rewrite: (path) => path.replace(/^\/api/, ''), // /api/log/ -> /log/
+        headers: {
+          'ngrok-skip-browser-warning': 'true', // 👈 THIS IS THE IMPORTANT PART
+        },
       },
     },
   },

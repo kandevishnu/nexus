@@ -1,15 +1,15 @@
-// src/pages/AdminDashboard.jsx (Updated)
-
 import React, { useState, useEffect, useRef } from "react";
 import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
-import { Menu, X, LogOut, Users, Settings, BarChart2, FileText } from "lucide-react";
-import { useAuth } from "../routes/AuthContext";
-import { getCookie } from '.././utils';
+import { Menu, X, LogOut, Users, Settings, BarChart2, FileText, Upload } from "lucide-react"; // Added Upload icon
+import { useAuth } from "../routes/AuthContext"; // Path appears correct if routes is sibling to pages
+import { getCookie } from '../utils'; // Changed from '.././utils' to correct relative path for sibling folder
 
 // Placeholder pages for Admin
 const AdminHome = () => <div>Admin Home Page</div>;
 const Reports = () => <div>Analytics & Reports</div>;
-import UploadFile from './AdminDashboard/UploadFile'; // Updated import
+// Assuming component files exist with these names:
+import UserManagementPanel from './AdminDashboard/UserManagementPanel'; // Correct file name
+import ResultsUploadPanel from './AdminDashboard/ResultsUploadPanel'; // New Import
 
 const AdminDashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -37,8 +37,7 @@ const AdminDashboard = () => {
     }, [sidebarOpen]);
 
     const isActive = (path) => location.pathname.includes(path);
-    const csrfToken = getCookie('csrftoken');
-    console.log(csrfToken)
+    // Removed csrfToken console.log as it's not needed for rendering and was added for debugging
 
     return (
         <div className="flex h-screen bg-gray-50">
@@ -73,6 +72,18 @@ const AdminDashboard = () => {
                         <FileText size={18} />
                         Upload Users
                     </Link>
+                    
+                    {/* NEW LINK: Upload Results */}
+                    <Link
+                        to="/admin/upload-results"
+                        className={`flex items-center gap-2 p-2 rounded transition ${
+                            isActive("upload-results") ? "bg-indigo-100 font-semibold text-indigo-600" : "hover:bg-indigo-100"
+                        }`}
+                    >
+                        <Upload size={18} /> 
+                        Upload Results
+                    </Link>
+                    
                     <Link
                         to="/admin/reports"
                         className={`flex items-center gap-2 p-2 rounded transition ${
@@ -120,7 +131,10 @@ const AdminDashboard = () => {
                     <Routes>
                         <Route path="/" element={<Navigate to="home" replace />} />
                         <Route path="home" element={<AdminHome />} />
-                        <Route path="upload-users" element={<UploadFile />} />
+                        {/* Corrected component name in route */}
+                        <Route path="upload-users" element={<UserManagementPanel />} /> 
+                        {/* New Results Route */}
+                        <Route path="upload-results" element={<ResultsUploadPanel />} />
                         <Route path="reports" element={<Reports />} />
                     </Routes>
                 </main>
