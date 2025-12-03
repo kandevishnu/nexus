@@ -7,10 +7,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true, // listen on 0.0.0.0 so ngrok can reach it
-    allowedHosts: ['d4f4e4431208.ngrok-free.app'], // 👈 NO https:// here
+    allowedHosts: ['8072efdc1537.ngrok-free.app'], // 👈 NO https:// here
     proxy: {
       '/api': {
-        target: 'https://sparlike-neurally-pa.ngrok-free.dev',
+        target: 'http://10.179.124.235:8000',
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
